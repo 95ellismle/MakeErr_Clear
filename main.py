@@ -6,6 +6,7 @@ Created on Tue Jun  5 14:43:32 2018
 @author: mellis
 """
 import numpy as np
+import os
 
 from src import parsing 
 from src import printing
@@ -13,16 +14,16 @@ from src import printing
 ###################      READING THE ERROR FILE      ##########################
 """ Reading the make.log file (should have the error) """
 
-#s = raw_input("")
+filepath = raw_input("")
 
-s = '/scratch/mellis/flavoured-cptk/cp2k/makefiles/make.log'
+s = filepath# '/scratch/mellis/flavoured-cptk/cp2k/makefiles/make.log'
 s = open(s, 'r').read()
-#print(s)
 
 
 """ Definitions """
-
-flags = list(np.load("make_flags.npy"))
+script_file = os.path.realpath(__file__)
+script_dir = script_file[:script_file.rfind('/')]
+flags = list(np.load(script_dir+"/make_flags.npy"))
 
 bad_words = ['Removing', 'Resolving','Discovering', 'f951:', 'make',] + flags
 ###############################################################################
@@ -35,10 +36,10 @@ bad_words = ['Removing', 'Resolving','Discovering', 'f951:', 'make',] + flags
 
 """ Parsing the Error Message """
 
+#print(s)
 Errs = parsing.Parser(s)
 
 printing.print_all_errs(Errs.errs_grouped_by_SR)
-
 
 
 ## If there are errors proceed

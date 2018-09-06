@@ -13,6 +13,10 @@ pipe the filepath to the make.log file you want to want to make more readable. F
 
 ### Examples:
 Will change an error message that looks like:
+<img src="./img/make_error.png"/>
+
+to
+
 
   
  

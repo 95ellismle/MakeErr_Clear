@@ -6,8 +6,6 @@ Created on Wed Sep  5 15:33:18 2018
 @author: mellis
 """
 
-
-
 def print_err(err_dict):    
         """
         Will print the re-formatted error in a standard human readable way.
@@ -32,6 +30,7 @@ def print_err(err_dict):
         print(" "*width + "|")
         print(" "*width + "|")
 
+
 def print_all_errs(errs_grouped_by_SR):
     """
     Will print all the error messages in a human readable format.
@@ -54,6 +53,7 @@ def print_all_errs(errs_grouped_by_SR):
             print_err(err_dict)
         print("-"*width)
         print("\n\n")
+
 
 def print_list_errors(err_list, err_lines_list, title):
         """
