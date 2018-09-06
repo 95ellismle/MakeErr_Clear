@@ -17,6 +17,6 @@ Will change an error message that looks like:
 
 to
 
-
+<img src="./img/make_error_cleaned.png"/>
   
  
