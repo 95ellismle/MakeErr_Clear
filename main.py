@@ -14,9 +14,9 @@ from src import printing
 ###################      READING THE ERROR FILE      ##########################
 """ Reading the make.log file (should have the error) """
 
-filepath = raw_input("")
+#filepath = raw_input("")
 
-s = filepath# '/scratch/mellis/flavoured-cptk/cp2k/makefiles/make.log'
+s =  '/scratch/mellis/flavoured-cptk/cp2k/makefiles/make.log'
 s = open(s, 'r').read()
 
 
@@ -39,9 +39,9 @@ bad_words = ['Removing', 'Resolving','Discovering', 'f951:', 'make',] + flags
 #print(s)
 Errs = parsing.Parser(s)
 
-printing.print_all_errs(Errs.errs_grouped_by_SR)
+printing.Printer(Errs)
 
-
+""" Old Stuff -For the grouping of similar errors can probs delete and re-write better code."""
 ## If there are errors proceed
 #if len(Err_msg.errs) > 0:
 #    line_nums = []

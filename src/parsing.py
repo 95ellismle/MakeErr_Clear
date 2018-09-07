@@ -251,7 +251,7 @@ class Parser(object):
                 subroutine_ranges[count]['end'] = line_num+1
                 count += 1
             
-            elif 'SUBROUTINE' in L and all(j not in L for j in ('END','CALL')) and begin and not end:
+            elif 'SUBROUTINE' in L and 'END' in L and 'CALL' not in L and begin and not end:
                 print("\n#######################\n\nSubroutine '%s' has started before the previous subroutine has finished!\n\n#######################\n"%SR_name)
                 
             elif 'SUBROUTINE' in L and 'END' in L and 'CALL' not in L and end and not begin: 
