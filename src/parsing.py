@@ -26,14 +26,18 @@ class Parser(object):
         create_err_dict         -> parses the error messages into 1 dictionary
         find_subroutine_errors  -> finds any errors in subroutines
         find_function_errors    -> finds any errors in functions
-        match_err_to_subroutine -> finds which subroutine the error is in
+        match_err_to_subroutine_function  -> finds which subroutine or function 
+                                             the error is in
+        group_errs_by_subroutine_function- > Will group the errors by subroutine
+                                             and function and save them in 2 
+                                             
     """
     
     def __init__(self, make_error_text):
         self.errs = {}
         self.create_err_dict(make_error_text)
-        self.match_err_to_subroutine()
-        self.group_errs_by_subroutine()
+        self.match_err_to_subroutine_function()
+        self.group_errs_by_subroutine_function()
 
     def create_err_dict(self, make_error_text):
         """
@@ -45,7 +49,7 @@ class Parser(object):
         """
         
         self.find_subroutine_errors(make_error_text)
-        self.find_function_errors(make_error_text)
+        self.find_more_errors(make_error_text)
         
     def find_subroutine_errors(self, make_error_text):
         """
@@ -60,7 +64,7 @@ class Parser(object):
         s_lines = make_error_text.split('\n')
         for i, line in enumerate(s_lines):
             if 'error:' in line.lower() and 'at ' in line.lower():
-                scount = str(self.err_count) + 's'
+                scount = str(self.err_count)
                 self.errs[scount] = {}
                 err_msg = s_lines[i-4:i+1]
         #        print err_msg, "\n\n"
@@ -82,7 +86,7 @@ class Parser(object):
                 self.errs[scount]['type'] = self.find_err_type(err)
                 self.err_count += 1
     
-    def find_function_errors(self, make_error_text):
+    def find_more_errors(self, make_error_text):
         """
         Will find all the make errors inside functions and add them to the errs
         dictionary. 
@@ -92,7 +96,7 @@ class Parser(object):
         """
         # Find errors with functions
         while make_error_text.find('In function') != -1:
-            fcount = str(self.err_count) + 'f'
+            fcount = str(self.err_count)
             self.errs[fcount] = {}
             check = make_error_text.find("In function ")
             make_error_text = make_error_text[check + len("In function "):]    
@@ -201,32 +205,41 @@ class Parser(object):
         elif 'undefined reference to ' in err_msg:
             return "$FIX$Need to import (or create) the subroutine mentioned above."
         elif 'Rank mismatch' in err_msg:
-           return "rank_mismatch"
+            return "rank_mismatch"
         else:
             return "not_classified"
     
-    def match_err_to_subroutine(self):
+    def match_err_to_subroutine_function(self):
         """
-        Will find which subroutine is causing the error.
+        Will find which subroutine/function is causing the error.
         
         Params:
             None
         """
-        all_files = list(set([(self.errs[err_code]['Filepath'], self.errs[err_code]['Module']) for err_code in self.errs if 's' in err_code]))
-        self.SR_ranges = {}
+        # Find all the functions and subroutines
+        all_files = list(set([(self.errs[err_code]['Filepath'], self.errs[err_code]['Module']) for err_code in self.errs]))
+        self.SR_ranges = {}           # A file is also called a module in this case.
+        self.F_ranges = {}           # A file is also called a module in this case.
         for f, module in all_files:
             with open(f, 'r') as ftxt:
-                self.SR_ranges[module] = self.find_all_subroutines(ftxt)
-        
+                 self.SR_ranges[module] = self.find_all_subroutines(ftxt)
+                 self.F_ranges[module]  = self.find_all_functions(ftxt)
+
+        # Match the error to the subroutines
         for err_code in self.errs:
-            triggered = False
-            for SR_details in self.SR_ranges[self.errs[err_code]['Module']]:
-                if SR_details['start'] < self.errs[err_code]['Line'] < SR_details['end']:
-                    self.errs[err_code]['SR_name'] = SR_details['name']
-                    triggered = True
-            if not triggered:
-                self.errs[err_code]['SR_name'] = ''
-        
+            module = self.errs[err_code]['Module']
+            line_num = self.errs[err_code]['Line']
+            if module in self.SR_ranges:
+                for SR_deets in self.SR_ranges[module]:
+                    if SR_deets['start'] < line_num < SR_deets['end']:
+                        self.errs[err_code]['SR_name'] = SR_deets['name']
+            elif module in self.F_ranges:
+                for F_deets in self.F_ranges[module]:
+                    if F_deets['start'] < line_num < F_deets['end']:
+                        self.errs[err_code]['F_name'] = F_deets['name']
+                
+#                if self.errs[err_code]['Module'] in self.SR_ranges[]
+    
     def find_all_subroutines(self, ftxt):
         """
         Will find the start and end index of each subroutine in a file
@@ -240,7 +253,9 @@ class Parser(object):
         count = 0
         for line_num, line in enumerate(ftxt):
             L = line.upper()
-            if 'SUBROUTINE' in L and all(j not in L for j in ('END','CALL')) and not begin and end:
+            if any(j not in L for j in ('SUBROUTINE', '(', ')')) and any(j not in L for j in ('END', 'SUBROUTINE')):
+                continue
+            elif 'SUBROUTINE' in L and all(j not in L for j in ('END','CALL')) and not begin and end:
                 begin = True
                 end = False
                 SR_name = line[L.find('SUBROUTINE')+len('SUBROUTINE'):line.find('(')].strip()
@@ -271,7 +286,9 @@ class Parser(object):
         count = 0
         for line_num, line in enumerate(ftxt):
             L = line.upper()
-            if 'FUNCTION' in L and 'END' not in L and not begin and end:
+            if any(j not in L for j in ('FUNCTION', '(', ')')) and any(j not in L for j in ('END', 'FUNCTION')):
+                continue
+            elif 'FUNCTION' in L and 'END' not in L and not begin and end:
                 begin = True
                 end = False
                 SR_name = line[L.find('FUNCTION')+len('FUNCTION'):line.find('(')].strip()
@@ -284,12 +301,13 @@ class Parser(object):
             
             elif 'FUNCTION' in L and 'END' not in L and begin and not end:
                 print("\n#######################\n\nFunction'%s' has started before the previous function has finished!\n\n#######################\n"%SR_name)
-                
+                raise SystemExit()
             elif 'FUNCTION' in L and 'END' in L and 'CALL' not in L and end and not begin: 
                 print("\n#######################\n\nFunction '%s' has ended before it has begun!\n\n#######################\n"%SR_name)
+                raise SystemExit()
         return function_ranges
     
-    def group_errs_by_subroutine(self):
+    def group_errs_by_subroutine_function(self):
         """
         Will group the errors by the subroutine name stored in a list of 
         dictionaries.
@@ -297,10 +315,19 @@ class Parser(object):
         Params:
             None
         """
-        all_SRs = list(set([self.errs[i]['SR_name'] for i in self.errs]))
-        self.errs_grouped_by_SR = {i:[] for i in all_SRs}
-        for err_code in self.errs:
-            self.errs_grouped_by_SR[self.errs[err_code]['SR_name']].append(self.errs[err_code])
+        all_SRs = list(set([self.errs[i]['SR_name'] for i in self.errs if 'SR_name' in self.errs[i].keys()]))
+        if all_SRs:
+            self.errs_grouped_by_SR = {i:[] for i in all_SRs}
+            for err_code in self.errs:
+                if 'SR_name' in self.errs[err_code].keys():
+                    self.errs_grouped_by_SR[self.errs[err_code]['SR_name']].append(self.errs[err_code])
+
+        all_Fs = list(set([self.errs[i]['F_name'] for i in self.errs if 'F_name' in self.errs[i].keys()]))
+        if all_Fs:
+            self.errs_grouped_by_fucntion = {i:[] for i in all_Fs}
+            for err_code in self.errs:
+                if 'F_name' in self.errs[err_code].keys():
+                    self.errs_grouped_by_fucntion[self.errs[err_code]['F_name']].append(self.errs[err_code])
 
 def error_message_combine(err_msg, strs_to_remove):
         """
